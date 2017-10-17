@@ -1,7 +1,7 @@
 /**
  * WordPress dependencies
  */
-import { Placeholder, Toolbar, Dashicon } from '@wordpress/components';
+import { Placeholder, Toolbar, Dashicon, IconButton, PanelBody } from '@wordpress/components';
 import { __ } from '@wordpress/i18n';
 import classnames from 'classnames';
 
@@ -10,6 +10,8 @@ import classnames from 'classnames';
  */
 import './editor.scss';
 import './style.scss';
+import UrlInput from '../../url-input';
+import ColorPalette from '../../color-palette';
 import { registerBlockType, source } from '../../api';
 import Editable from '../../editable';
 import MediaUploadButton from '../../media-upload-button';
@@ -53,6 +55,22 @@ registerBlockType( 'core/cover-image', {
 			type: 'number',
 			default: 50,
 		},
+		buttonBackgroundColor: {
+			type: 'string',
+		},
+		buttonText: {
+			type: 'string',
+		},
+		buttonTextColor: {
+			type: 'string',
+		},
+		buttonUrl: {
+			type: 'string',
+		},
+		hasButton: {
+			type: 'boolean',
+			default: false,
+		},
 	},
 
 	getEditWrapperProps( attributes ) {
@@ -63,10 +81,11 @@ registerBlockType( 'core/cover-image', {
 	},
 
 	edit( { attributes, setAttributes, focus, setFocus, className } ) {
-		const { url, title, align, id, hasParallax, dimRatio } = attributes;
+		const { url, title, align, id, hasParallax, dimRatio, buttonBackgroundColor, buttonText, buttonTextColor, buttonUrl, hasButton } = attributes;
 		const updateAlignment = ( nextAlign ) => setAttributes( { align: nextAlign } );
 		const onSelectImage = ( media ) => setAttributes( { url: media.url, id: media.id } );
 		const toggleParallax = () => setAttributes( { hasParallax: ! hasParallax } );
+		const toggleHasButton = () => setAttributes( { hasButton: ! hasButton } );
 		const setDimRatio = ( ratio ) => setAttributes( { dimRatio: ratio } );
 		const style = url
 			? { backgroundImage: `url(${ url })` }
@@ -79,6 +98,7 @@ registerBlockType( 'core/cover-image', {
 				'has-parallax': hasParallax,
 			}
 		);
+		const focusedEditable = focus ? ( focus.editable || 'title' ) : null;
 
 		const controls = focus && [
 			<BlockControls key="controls">
@@ -119,6 +139,11 @@ registerBlockType( 'core/cover-image', {
 					max={ 100 }
 					step={ 10 }
 				/>
+				<ToggleControl
+					label={ __( 'Show Button' ) }
+					checked={ !! hasButton }
+					onChange={ toggleHasButton }
+				/>
 			</InspectorControls>,
 		];
 
@@ -152,22 +177,69 @@ registerBlockType( 'core/cover-image', {
 				className={ classes }
 			>
 				{ title || !! focus ? (
-					<Editable
-						tagName="h2"
-						placeholder={ __( 'Write title…' ) }
-						value={ title }
-						focus={ focus }
-						onFocus={ setFocus }
-						onChange={ ( value ) => setAttributes( { title: value } ) }
-						inlineToolbar
+					<div className="title-container">
+						<Editable
+							tagName="h2"
+							placeholder={ __( 'Write title…' ) }
+							value={ title }
+							focus={ focusedEditable === 'title' ? focus : null }
+							onFocus={ ( props ) => setFocus( { ...props, editable: 'title' } ) }
+							onChange={ ( value ) => setAttributes( { title: value } ) }
+							inlineToolbar
 					/>
+					</div>
 				) : null }
+
+				{ hasButton &&
+					<span key="button" className="button-container aligncenter" style={ { backgroundColor: buttonBackgroundColor } } >
+						<Editable
+							tagName="span"
+							placeholder={ __( 'Add text…' ) }
+							value={ buttonText }
+							focus={ focusedEditable === 'button' ? focus : null }
+							onFocus={ ( props ) => setFocus( { ...props, editable: 'button' } ) }
+							onChange={ ( value ) => setAttributes( { buttonText: value } ) }
+							formattingControls={ [ 'bold', 'italic', 'strikethrough' ] }
+							style={ {
+								color: buttonTextColor,
+							} }
+							keepPlaceholderOnFocus
+						/>
+						{ focusedEditable === 'button' &&
+							<form
+								className="blocks-format-toolbar__link-modal"
+								onSubmit={ ( event ) => event.preventDefault() }>
+								<UrlInput
+									value={ buttonUrl }
+									onChange={ ( value ) => setAttributes( { buttonUrl: value } ) }
+								/>
+								<IconButton icon="editor-break" label={ __( 'Apply' ) } type="submit" />
+							</form>
+						}
+						{ focus &&
+							<InspectorControls key="inspector">
+								<PanelBody title={ __( 'Button Background Color' ) }>
+									<ColorPalette
+										value={ buttonBackgroundColor }
+										onChange={ ( value ) => setAttributes( { buttonBackgroundColor: value } ) }
+									/>
+								</PanelBody>
+								<PanelBody title={ __( 'Button Text Color' ) }>
+									<ColorPalette
+										value={ buttonTextColor }
+										onChange={ ( value ) => setAttributes( { buttonTextColor: value } ) }
+									/>
+								</PanelBody>
+							</InspectorControls>
+						}
+					</span>
+				}
 			</section>,
 		];
 	},
 
 	save( { attributes, className } ) {
-		const { url, title, hasParallax, dimRatio } = attributes;
+		const { url, title, hasParallax, dimRatio, buttonBackgroundColor, buttonText, buttonTextColor, buttonUrl, hasButton } = attributes;
 		const style = url
 			? { backgroundImage: `url(${ url })` }
 			: undefined;
@@ -183,6 +255,11 @@ registerBlockType( 'core/cover-image', {
 		return (
 			<section className={ classes } style={ style }>
 				<h2>{ title }</h2>
+				{ hasButton && <div className="button-container aligncenter" style={ { backgroundColor: buttonBackgroundColor } }>
+					<a href={ buttonUrl } title={ title } style={ { color: buttonTextColor } }>
+						{ buttonText }
+					</a>
+				</div> }
 			</section>
 		);
 	},
